@@ -17,9 +17,9 @@ export const createTransactions = async (req, res) => {
 
     // validate amount is a valid decimal
     const numericAmount = parseFloat(amount);
-    if (isNaN(numericAmount) || numericAmount <= 0) {
+    if (isNaN(numericAmount)) {
       return res.status(400).json({
-        message: "Amount must be a valid positive number",
+        message: "Amount must be a valid number",
         success: false,
       });
     }
@@ -154,9 +154,9 @@ export const updateTransactions = async (req, res) => {
 
     // Validate amount
     const numericAmount = parseFloat(amount);
-    if (isNaN(numericAmount) || numericAmount <= 0) {
+    if (isNaN(numericAmount)) {
       return res.status(400).json({
-        message: "Amount must be a valid positive number",
+        message: "Amount must be a valid number",
         success: false,
       });
     }
@@ -237,6 +237,43 @@ export const deleteTransaction = async (req, res) => {
     });
   } catch (error) {
     console.log("Error deleting transaction: ", error);
+    res.status(500).json({
+      message: "Internal server error",
+      success: false,
+    });
+  }
+};
+
+export const transactionsSummary = async (req, res) => {
+  try {
+    const { user_id } = req.params;
+
+    const balanceResult = await sql`
+      SELECT COALESCE(SUM(amount), 0) as balance FROM Transactions
+      WHERE user_id = ${user_id}
+    `;
+
+    const incomeResult = await sql`
+      SELECT COALESCE(SUM(amount), 0) as income FROM Transactions
+      WHERE user_id = ${user_id} AND amount > 0
+    `;
+
+    const expenseResult = await sql`
+      SELECT COALESCE(SUM(amount), 0) as expenses FROM Transactions
+      WHERE user_id = ${user_id} AND amount < 0
+    `;
+
+    res.status(200).json({
+      message: "Transaction summary fetched",
+      success: true,
+      data: {
+        balance: balanceResult[0].balance,
+        income: incomeResult[0].income,
+        expenses: expenseResult[0].expenses,
+      },
+    });
+  } catch (error) {
+    console.log("Error getting transactions summary: ", error);
     res.status(500).json({
       message: "Internal server error",
       success: false,
